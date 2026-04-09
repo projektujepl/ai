@@ -129,6 +129,7 @@
         top: 0; left: 0; bottom: 0;
         padding-top: env(safe-area-inset-top, 0px);
         transform: translateX(-100%);
+        z-index: 20;
       }
       .sidebar.open {
         transform: translateX(0);
@@ -140,8 +141,10 @@
     .sidebar-backdrop {
       display: none;
       position: fixed; inset: 0;
+      /* left:252px żeby NIE przykrywać otwartego sidebara */
+      left: 252px;
       background: rgba(0,0,0,0.65);
-      z-index: 9;
+      z-index: 8;
       opacity: 0; pointer-events: none;
       transition: opacity 0.25s;
     }
