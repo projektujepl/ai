@@ -183,10 +183,8 @@ function renderChatList() {
 
     // tap to load — only if NOT swiped
     item.addEventListener("click", (e) => {
-      if (item.classList.contains("swiped")) {
-        // kliknięcie gdy wysunięty = zamknij swipe, nie ładuj czatu
-        item.classList.remove("swiped");
-        item.classList.add("snap-back");
+      if (wrap.classList.contains("swiped")) {
+        wrap.classList.remove("swiped");
         return;
       }
       loadChat(chat.id);
@@ -196,51 +194,66 @@ function renderChatList() {
     let touchStartX = 0;
     let touchStartY = 0;
     let wasSwiped = false;
-    let isScrolling = null; // null = undecided, true = vertical, false = horizontal
+    let isScrolling = null;
     let didMove = false;
+    const SWIPE_OPEN = 55;    // px w lewo żeby otworzyć przycisk
+    const SWIPE_DELETE = 150; // px w lewo żeby od razu usunąć
 
     item.addEventListener("touchstart", (e) => {
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
-      wasSwiped = item.classList.contains("swiped");
+      wasSwiped = wrap.classList.contains("swiped");
       isScrolling = null;
       didMove = false;
-      item.classList.remove("snap-back");
+      delBg.style.transition = "none";
     }, { passive: true });
 
     item.addEventListener("touchmove", (e) => {
       const dx = e.touches[0].clientX - touchStartX;
       const dy = e.touches[0].clientY - touchStartY;
 
-      // decide direction on first significant move
       if (isScrolling === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
         isScrolling = Math.abs(dy) > Math.abs(dx);
       }
-      if (isScrolling) return; // let parent scroll
+      if (isScrolling) return;
 
       didMove = true;
-      e.preventDefault(); // block vertical scroll when swiping horizontally
-      const maxSwipe = -70;
-      let offset = wasSwiped ? dx - 70 : dx;
-      offset = Math.max(maxSwipe, Math.min(0, offset));
-      item.style.transition = "none";
-      item.style.transform = `translateX(${offset}px)`;
+      e.preventDefault();
+
+      // dx jest ujemny gdy swipe w lewo
+      let progress = wasSwiped ? -dx : Math.max(0, -dx); // jak już otwarty, liczymy od 0
+      if (wasSwiped) progress = Math.max(0, 70 + (-dx)); // od pozycji otwartej
+
+      // przycisk wyjeżdża proporcjonalnie — od 0% do 100% (70px)
+      const revealPx = Math.min(progress, 70);
+      const revealPct = (revealPx / 70) * 100;
+      delBg.style.transform = `translateX(${100 - revealPct}%)`;
+
+      // confirm-delete gdy mocno przesunięty
+      if (progress > SWIPE_DELETE) {
+        wrap.classList.add("confirm-delete");
+      } else {
+        wrap.classList.remove("confirm-delete");
+      }
     }, { passive: false });
 
     item.addEventListener("touchend", (e) => {
       if (isScrolling || !didMove) return;
+      delBg.style.transition = "";
+
       const dx = e.changedTouches[0].clientX - touchStartX;
-      const movedLeft = wasSwiped ? dx < 5 : dx < -40;
+      const totalLeft = wasSwiped ? 70 + (-dx) : (-dx);
 
-      item.style.transition = "";
-      item.style.transform = "";
-
-      if (movedLeft) {
-        item.classList.add("swiped");
-        item.classList.remove("snap-back");
+      if (totalLeft > SWIPE_DELETE) {
+        // mocny swipe = usuń
+        wrap.classList.remove("confirm-delete");
+        deleteChat(chat.id);
+      } else if (totalLeft > SWIPE_OPEN) {
+        // wystarczający swipe = pokaż przycisk
+        wrap.classList.add("swiped");
       } else {
-        item.classList.remove("swiped");
-        item.classList.add("snap-back");
+        // za mało = zamknij
+        wrap.classList.remove("swiped");
       }
     }, { passive: true });
 
@@ -254,9 +267,8 @@ function renderChatList() {
 }
 
 function closeAllSwipes() {
-  document.querySelectorAll(".chat-list-item.swiped").forEach(el => {
+  document.querySelectorAll(".swipe-item.swiped").forEach(el => {
     el.classList.remove("swiped");
-    el.classList.add("snap-back");
   });
 }
 
