@@ -181,20 +181,30 @@ function renderChatList() {
     item.appendChild(titleEl);
     item.appendChild(delBtn);
 
-    // tap to load
-    item.addEventListener("click", () => loadChat(chat.id));
+    // tap to load — only if NOT swiped
+    item.addEventListener("click", (e) => {
+      if (item.classList.contains("swiped")) {
+        // kliknięcie gdy wysunięty = zamknij swipe, nie ładuj czatu
+        item.classList.remove("swiped");
+        item.classList.add("snap-back");
+        return;
+      }
+      loadChat(chat.id);
+    });
 
     // ── swipe to delete (touch only) ──────────────────────
     let touchStartX = 0;
     let touchStartY = 0;
-    let swiped = false;
+    let wasSwiped = false;
     let isScrolling = null; // null = undecided, true = vertical, false = horizontal
+    let didMove = false;
 
     item.addEventListener("touchstart", (e) => {
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
-      swiped = item.classList.contains("swiped");
+      wasSwiped = item.classList.contains("swiped");
       isScrolling = null;
+      didMove = false;
       item.classList.remove("snap-back");
     }, { passive: true });
 
@@ -203,23 +213,24 @@ function renderChatList() {
       const dy = e.touches[0].clientY - touchStartY;
 
       // decide direction on first significant move
-      if (isScrolling === null && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+      if (isScrolling === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
         isScrolling = Math.abs(dy) > Math.abs(dx);
       }
       if (isScrolling) return; // let parent scroll
 
+      didMove = true;
       e.preventDefault(); // block vertical scroll when swiping horizontally
       const maxSwipe = -70;
-      let offset = swiped ? dx - 70 : dx;
+      let offset = wasSwiped ? dx - 70 : dx;
       offset = Math.max(maxSwipe, Math.min(0, offset));
       item.style.transition = "none";
       item.style.transform = `translateX(${offset}px)`;
     }, { passive: false });
 
     item.addEventListener("touchend", (e) => {
-      if (isScrolling) return;
+      if (isScrolling || !didMove) return;
       const dx = e.changedTouches[0].clientX - touchStartX;
-      const movedLeft = swiped ? dx < 5 : dx < -40;
+      const movedLeft = wasSwiped ? dx < 5 : dx < -40;
 
       item.style.transition = "";
       item.style.transform = "";
@@ -238,8 +249,8 @@ function renderChatList() {
     chatListEl.appendChild(wrap);
   }
 
-  // close any open swipe when tapping elsewhere
-  document.addEventListener("touchstart", closeAllSwipes, { passive: true });
+  // close any open swipe when tapping elsewhere (only outside swipe items)
+  // listener jest dodany tylko raz — w init()
 }
 
 function closeAllSwipes() {
@@ -365,4 +376,9 @@ function consumeSseEvents(buffer) {
   chatHistory  = [{ role: "assistant", content: WELCOME_MSG }];
   renderMessages();
   renderChatList();
+
+  // Zamknij swipe gdy dotknie się poza elementem listy
+  document.addEventListener("touchstart", (e) => {
+    if (!e.target.closest(".swipe-item")) closeAllSwipes();
+  }, { passive: true });
 })();
