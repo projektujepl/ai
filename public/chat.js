@@ -1,8 +1,9 @@
 /**
  * Water AI — chat.js
- * - Zawsze startuje nowym czatem przy wejściu na stronę
- * - Stare czaty widoczne w sidebarze (localStorage)
- * - Streaming SSE, avatary, historia
+ * - Nowy czat przy każdym wejściu na stronę
+ * - Historia czatów w localStorage
+ * - Swipe-to-delete na mobile
+ * - Wszystkie teksty po polsku
  */
 
 // ── DOM ──────────────────────────────────────────────────────────
@@ -18,27 +19,22 @@ const btnMenu         = document.getElementById("btn-menu");
 const btnNewSidebar   = document.getElementById("btn-new-chat-sidebar");
 const btnNewHeader    = document.getElementById("btn-new-chat-header");
 
-// ── CONFIG ───────────────────────────────────────────────────────
+// ── CONFIG ────────────────────────────────────────────────────────
 const STORAGE_KEY = "waterai_chats";
-const WELCOME_MSG = "Cześć! Jestem asystentem AI. W czym mogę Ci dziś pomóc?";
-const USER_INITIALS = "Ty";
+const WELCOME_MSG = "Cześć! Jestem asystentem AI. W czym mogę Ci dzisiaj pomóc?";
 
-// ── STATE ────────────────────────────────────────────────────────
-let activeChatId  = null;
-let chatHistory   = [];
-let isProcessing  = false;
+// ── STATE ─────────────────────────────────────────────────────────
+let activeChatId = null;
+let chatHistory  = [];
+let isProcessing = false;
 
-// ── STORAGE ──────────────────────────────────────────────────────
+// ── STORAGE ───────────────────────────────────────────────────────
 function loadAllChats() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
   catch { return {}; }
 }
-function saveAllChats(chats) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
-}
-function genId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
+function saveAllChats(c) { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); }
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
 // ── SIDEBAR MOBILE ────────────────────────────────────────────────
 function openSidebar() {
@@ -49,27 +45,21 @@ function closeSidebar() {
   sidebar.classList.remove("open");
   backdrop.classList.remove("visible");
 }
-btnMenu   && btnMenu.addEventListener("click", () =>
+btnMenu  && btnMenu.addEventListener("click", () =>
   sidebar.classList.contains("open") ? closeSidebar() : openSidebar()
 );
-backdrop  && backdrop.addEventListener("click", closeSidebar);
+backdrop && backdrop.addEventListener("click", closeSidebar);
 
 // ── NEW CHAT ──────────────────────────────────────────────────────
 function startNewChat() {
-  // persist current if it has user messages
-  if (activeChatId && chatHistory.some(m => m.role === "user")) {
-    persistChat();
-  }
-
+  if (activeChatId && chatHistory.some(m => m.role === "user")) persistChat();
   activeChatId = genId();
   chatHistory  = [{ role: "assistant", content: WELCOME_MSG }];
-
   renderMessages();
   renderChatList();
   closeSidebar();
   userInput.focus();
 }
-
 btnNewSidebar && btnNewSidebar.addEventListener("click", startNewChat);
 btnNewHeader  && btnNewHeader.addEventListener("click",  startNewChat);
 
@@ -77,28 +67,19 @@ btnNewHeader  && btnNewHeader.addEventListener("click",  startNewChat);
 function persistChat() {
   if (!activeChatId) return;
   const chats = loadAllChats();
-  const firstUser = chatHistory.find(m => m.role === "user");
-  const title = firstUser
-    ? firstUser.content.slice(0, 42) + (firstUser.content.length > 42 ? "…" : "")
+  const first = chatHistory.find(m => m.role === "user");
+  const title = first
+    ? first.content.slice(0,42) + (first.content.length > 42 ? "…" : "")
     : "Czat";
-
-  chats[activeChatId] = {
-    id: activeChatId,
-    title,
-    updatedAt: Date.now(),
-    messages: chatHistory,
-  };
+  chats[activeChatId] = { id: activeChatId, title, updatedAt: Date.now(), messages: chatHistory };
   saveAllChats(chats);
   renderChatList();
 }
 
 // ── LOAD CHAT ─────────────────────────────────────────────────────
 function loadChat(id) {
-  if (activeChatId && activeChatId !== id && chatHistory.some(m => m.role === "user")) {
-    persistChat();
-  }
-  const chats = loadAllChats();
-  const chat  = chats[id];
+  if (activeChatId && activeChatId !== id && chatHistory.some(m => m.role === "user")) persistChat();
+  const chat = loadAllChats()[id];
   if (!chat) return;
   activeChatId = id;
   chatHistory  = chat.messages;
@@ -109,8 +90,7 @@ function loadChat(id) {
 }
 
 // ── DELETE ────────────────────────────────────────────────────────
-function deleteChat(id, e) {
-  e.stopPropagation();
+function deleteChat(id) {
   const chats = loadAllChats();
   delete chats[id];
   saveAllChats(chats);
@@ -121,50 +101,34 @@ function deleteChat(id, e) {
 // ── RENDER MESSAGES ───────────────────────────────────────────────
 function renderMessages() {
   chatMessagesEl.innerHTML = "";
-  for (const msg of chatHistory) {
-    appendMsgRow(msg.role, msg.content, false);
-  }
+  for (const msg of chatHistory) appendMsgRow(msg.role, msg.content, false);
   chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
 }
 
-/**
- * Append a message row to the DOM.
- * @param {string} role - 'user' | 'assistant'
- * @param {string} content
- * @param {boolean} animate - whether to animate (true for new messages)
- * @returns {HTMLElement} the <p> inside the bubble (for streaming)
- */
 function appendMsgRow(role, content, animate = true) {
   const row = document.createElement("div");
   row.className = "msg-row" + (role === "user" ? " user" : "");
-  if (!animate) row.style.animation = "none", row.style.opacity = "1";
+  if (!animate) { row.style.animation = "none"; row.style.opacity = "1"; }
 
-  // avatar
   const av = document.createElement("div");
   av.className = "msg-avatar" + (role === "user" ? " user-av" : "");
   if (role === "assistant") {
     const img = document.createElement("img");
-    img.src = "logo.png";
-    img.alt = "AI";
+    img.src = "logo.png"; img.alt = "AI";
     av.appendChild(img);
   } else {
-    av.textContent = "T";
+    av.textContent = "Ty";
+    av.style.fontSize = "0.6rem";
   }
 
-  // bubble
   const bubble = document.createElement("div");
   bubble.className = "message " + (role === "user" ? "user-message" : "assistant-message");
   const p = document.createElement("p");
   p.textContent = content;
   bubble.appendChild(p);
 
-  if (role === "user") {
-    row.appendChild(bubble);
-    row.appendChild(av);
-  } else {
-    row.appendChild(av);
-    row.appendChild(bubble);
-  }
+  if (role === "user") { row.appendChild(bubble); row.appendChild(av); }
+  else                  { row.appendChild(av);     row.appendChild(bubble); }
 
   chatMessagesEl.appendChild(row);
   chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
@@ -174,7 +138,7 @@ function appendMsgRow(role, content, animate = true) {
 // ── RENDER SIDEBAR ────────────────────────────────────────────────
 function renderChatList() {
   const chats  = loadAllChats();
-  const sorted = Object.values(chats).sort((a, b) => b.updatedAt - a.updatedAt);
+  const sorted = Object.values(chats).sort((a,b) => b.updatedAt - a.updatedAt);
 
   chatListEl.innerHTML = "";
 
@@ -185,33 +149,117 @@ function renderChatList() {
   }
 
   for (const chat of sorted) {
+    // wrapper for swipe reveal
+    const wrap = document.createElement("div");
+    wrap.className = "swipe-item";
+
+    // red delete bg (revealed on swipe)
+    const delBg = document.createElement("div");
+    delBg.className = "swipe-del-bg";
+    delBg.innerHTML = `<svg viewBox="0 0 16 16" fill="none">
+      <path d="M3 4h10M6 4V3h4v1M5 4l.5 9h5L11 4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>Usuń`;
+    delBg.addEventListener("click", (e) => { e.stopPropagation(); deleteChat(chat.id); });
+
+    // list item
     const item = document.createElement("div");
     item.className = "chat-list-item" + (chat.id === activeChatId ? " active" : "");
-    item.innerHTML = `
-      <span class="item-title">${escHtml(chat.title)}</span>
-      <span class="item-del" title="Usuń">
-        <svg viewBox="0 0 16 16" fill="none">
-          <path d="M3 4h10M6 4V3h4v1M5 4l.5 9h5L11 4"
-            stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </span>`;
+
+    const titleEl = document.createElement("span");
+    titleEl.className = "item-title";
+    titleEl.textContent = chat.title;
+
+    // desktop delete btn
+    const delBtn = document.createElement("button");
+    delBtn.className = "item-del-btn";
+    delBtn.title = "Usuń";
+    delBtn.innerHTML = `<svg viewBox="0 0 16 16" fill="none">
+      <path d="M3 4h10M6 4V3h4v1M5 4l.5 9h5L11 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+    delBtn.addEventListener("click", (e) => { e.stopPropagation(); deleteChat(chat.id); });
+
+    item.appendChild(titleEl);
+    item.appendChild(delBtn);
+
+    // tap to load
     item.addEventListener("click", () => loadChat(chat.id));
-    item.querySelector(".item-del").addEventListener("click", e => deleteChat(chat.id, e));
-    chatListEl.appendChild(item);
+
+    // ── swipe to delete (touch only) ──────────────────────
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let swiped = false;
+    let isScrolling = null; // null = undecided, true = vertical, false = horizontal
+
+    item.addEventListener("touchstart", (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      swiped = item.classList.contains("swiped");
+      isScrolling = null;
+      item.classList.remove("snap-back");
+    }, { passive: true });
+
+    item.addEventListener("touchmove", (e) => {
+      const dx = e.touches[0].clientX - touchStartX;
+      const dy = e.touches[0].clientY - touchStartY;
+
+      // decide direction on first significant move
+      if (isScrolling === null && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+        isScrolling = Math.abs(dy) > Math.abs(dx);
+      }
+      if (isScrolling) return; // let parent scroll
+
+      e.preventDefault(); // block vertical scroll when swiping horizontally
+      const maxSwipe = -70;
+      let offset = swiped ? dx - 70 : dx;
+      offset = Math.max(maxSwipe, Math.min(0, offset));
+      item.style.transition = "none";
+      item.style.transform = `translateX(${offset}px)`;
+    }, { passive: false });
+
+    item.addEventListener("touchend", (e) => {
+      if (isScrolling) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const movedLeft = swiped ? dx < 5 : dx < -40;
+
+      item.style.transition = "";
+      item.style.transform = "";
+
+      if (movedLeft) {
+        item.classList.add("swiped");
+        item.classList.remove("snap-back");
+      } else {
+        item.classList.remove("swiped");
+        item.classList.add("snap-back");
+      }
+    }, { passive: true });
+
+    wrap.appendChild(delBg);
+    wrap.appendChild(item);
+    chatListEl.appendChild(wrap);
   }
+
+  // close any open swipe when tapping elsewhere
+  document.addEventListener("touchstart", closeAllSwipes, { passive: true });
+}
+
+function closeAllSwipes() {
+  document.querySelectorAll(".chat-list-item.swiped").forEach(el => {
+    el.classList.remove("swiped");
+    el.classList.add("snap-back");
+  });
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────
-function escHtml(str) {
-  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-// ── INPUT EVENTS ──────────────────────────────────────────────────
-userInput.addEventListener("input", function () {
+// ── INPUT ─────────────────────────────────────────────────────────
+userInput.addEventListener("input", function() {
   this.style.height = "auto";
   this.style.height = this.scrollHeight + "px";
 });
-userInput.addEventListener("keydown", function (e) {
+userInput.addEventListener("keydown", function(e) {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 sendButton.addEventListener("click", sendMessage);
@@ -232,7 +280,6 @@ async function sendMessage() {
   typingIndicator.classList.add("visible");
 
   try {
-    // placeholder for streaming
     const aiP = appendMsgRow("assistant", "", true);
 
     const response = await fetch("/api/chat", {
@@ -241,7 +288,7 @@ async function sendMessage() {
       body: JSON.stringify({ messages: chatHistory }),
     });
 
-    if (!response.ok || !response.body) throw new Error("No response");
+    if (!response.ok || !response.body) throw new Error("Brak odpowiedzi");
 
     const reader  = response.body.getReader();
     const decoder = new TextDecoder();
@@ -257,8 +304,7 @@ async function sendMessage() {
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
-        const p = consumeSseEvents(buffer + "\n\n");
-        for (const data of p.events) {
+        for (const data of consumeSseEvents(buffer + "\n\n").events) {
           if (data === "[DONE]") break;
           try {
             const j = JSON.parse(data);
@@ -305,18 +351,18 @@ function consumeSseEvents(buffer) {
   while ((idx = norm.indexOf("\n\n")) !== -1) {
     const raw = norm.slice(0, idx);
     norm = norm.slice(idx + 2);
-    const lines = raw.split("\n").filter(l => l.startsWith("data:"))
+    const lines = raw.split("\n")
+      .filter(l => l.startsWith("data:"))
       .map(l => l.slice("data:".length).trimStart());
     if (lines.length) events.push(lines.join("\n"));
   }
   return { events, buffer: norm };
 }
 
-// ── INIT — always new chat on page load ───────────────────────────
+// ── INIT ──────────────────────────────────────────────────────────
 (function init() {
-  // Start brand-new chat every time user opens the page
   activeChatId = genId();
   chatHistory  = [{ role: "assistant", content: WELCOME_MSG }];
   renderMessages();
-  renderChatList(); // populate sidebar from localStorage
+  renderChatList();
 })();
