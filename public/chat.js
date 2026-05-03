@@ -1,28 +1,33 @@
-const chat = document.getElementById("chat");
-const input = document.getElementById("input");
-const send = document.getElementById("send");
-
-function add(text, cls) {
+function addMsg(text, type) {
   const div = document.createElement("div");
-  div.className = cls;
+  div.className = "msg " + type;
   div.textContent = text;
   chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
 }
 
 async function sendMessage() {
   const msg = input.value.trim();
   if (!msg) return;
 
-  add(msg, "user");
+  addMsg(msg, "user");
   input.value = "";
 
-  const res = await fetch(
-    `https://ai.plprojektuje.workers.dev/?prompt=${encodeURIComponent(msg)}`
-  );
+  const aiBox = addMsg("...", "ai");
 
-  const data = await res.json();
+  try {
+    const res = await fetch(
+      `https://ai.plprojektuje.workers.dev/?prompt=${encodeURIComponent(msg)}`
+    );
 
-  add(data.response, "ai");
+    const data = await res.json();
+
+    console.log("API RESPONSE:", data); // 👈 DEBUG
+
+    aiBox.textContent = data.response ?? "Brak response w API";
+
+  } catch (e) {
+    aiBox.textContent = "Błąd API";
+  }
 }
-
-send.onclick = sendMessage;
