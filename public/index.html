@@ -1,45 +1,17 @@
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const prompt = url.searchParams.get('promt') || url.searchParams.get('prompt');
-    
-    // CORS headers
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Content-Type': 'application/json'
-    };
-    
-    // Preflight
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
-    }
-    
-    // API endpoint - zwraca JSON
-    if (prompt) {
-      try {
-        // TUTAJ PODŁĄCZ SWOJE AI
-        // Na razie przykładowa odpowiedź:
-        const aiResponse = `Odpowiedź na: "${prompt}"\n\nTo jest odpowiedź w formacie JSON. Podmień to na prawdziwe API AI.`;
-        
-        return new Response(JSON.stringify({
-          success: true,
-          prompt: prompt,
-          response: aiResponse,
-          timestamp: new Date().toISOString()
-        }), { headers: corsHeaders });
-        
-      } catch (error) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: error.message
-        }), { headers: corsHeaders, status: 500 });
-      }
-    }
-    
-    // Dla strony głównej - zwróć HTML z folderu public
-    // Cloudflare Workers assets automatycznie serwują pliki z /public
-    return env.ASSETS.fetch(request);
-  }
-};
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Chat</title>
+</head>
+<body>
+
+<div id="chat"></div>
+
+<textarea id="input"></textarea>
+<button id="send">Wyślij</button>
+
+<script src="chat.js"></script>
+
+</body>
+</html>
