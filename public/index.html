@@ -1,93 +1,45 @@
-<!doctype html>
-<html lang="pl">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Water AI</title>
-
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-
-  <style>
-    body {
-      margin: 0;
-      font-family: Outfit, sans-serif;
-      background: #020a12;
-      color: #dff0f8;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const prompt = url.searchParams.get('promt') || url.searchParams.get('prompt');
+    
+    // CORS headers
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Content-Type': 'application/json'
+    };
+    
+    // Preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
     }
-
-    .chat {
-      flex: 1;
-      overflow-y: auto;
-      padding: 15px;
+    
+    // API endpoint - zwraca JSON
+    if (prompt) {
+      try {
+        // TUTAJ PODŁĄCZ SWOJE AI
+        // Na razie przykładowa odpowiedź:
+        const aiResponse = `Odpowiedź na: "${prompt}"\n\nTo jest odpowiedź w formacie JSON. Podmień to na prawdziwe API AI.`;
+        
+        return new Response(JSON.stringify({
+          success: true,
+          prompt: prompt,
+          response: aiResponse,
+          timestamp: new Date().toISOString()
+        }), { headers: corsHeaders });
+        
+      } catch (error) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: error.message
+        }), { headers: corsHeaders, status: 500 });
+      }
     }
-
-    .msg {
-      margin: 10px 0;
-      padding: 10px 14px;
-      border-radius: 12px;
-      max-width: 80%;
-      white-space: pre-wrap;
-    }
-
-    .user {
-      background: rgba(0,180,216,0.2);
-      margin-left: auto;
-    }
-
-    .ai {
-      background: rgba(0,180,216,0.06);
-    }
-
-    .input {
-      display: flex;
-      padding: 10px;
-      border-top: 1px solid #0a2233;
-    }
-
-    textarea {
-      flex: 1;
-      resize: none;
-      border: none;
-      outline: none;
-      padding: 10px;
-      border-radius: 10px;
-      background: #040f1c;
-      color: white;
-      font-size: 16px;
-    }
-
-    button {
-      margin-left: 10px;
-      width: 50px;
-      border: none;
-      border-radius: 10px;
-      background: #00b4d8;
-      color: white;
-      cursor: pointer;
-    }
-
-    .typing {
-      font-size: 12px;
-      opacity: 0.6;
-      padding: 5px 15px;
-    }
-  </style>
-</head>
-
-<body>
-
-<div id="chat" class="chat"></div>
-
-<div class="typing" id="typing" style="display:none;">AI pisze...</div>
-
-<div class="input">
-  <textarea id="input" rows="1" placeholder="Napisz wiadomość..."></textarea>
-  <button id="send">➤</button>
-</div>
-
-<script src="chat.js"></script>
-</body>
-</html>
+    
+    // Dla strony głównej - zwróć HTML z folderu public
+    // Cloudflare Workers assets automatycznie serwują pliki z /public
+    return env.ASSETS.fetch(request);
+  }
+};
