@@ -1,36 +1,28 @@
-async function sendMessage() {
-  const message = userInput.value.trim();
-  if (!message || isProcessing) return;
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const send = document.getElementById("send");
 
-  isProcessing = true;
-  userInput.disabled = sendButton.disabled = true;
-
-  appendMsgRow("user", message);
-
-  userInput.value = "";
-  userInput.style.height = "auto";
-
-  typingIndicator.classList.add("visible");
-
-  try {
-    const aiP = appendMsgRow("assistant", "");
-
-    const res = await fetch(
-      `https://ai.plprojektuje.workers.dev/?prompt=${encodeURIComponent(message)}`
-    );
-
-    const data = await res.json();
-
-    const text = data.response || "Brak odpowiedzi";
-
-    aiP.textContent = text;
-
-  } catch (err) {
-    console.error(err);
-    appendMsgRow("assistant", "Błąd połączenia z AI");
-  } finally {
-    typingIndicator.classList.remove("visible");
-    isProcessing = false;
-    userInput.disabled = sendButton.disabled = false;
-  }
+function add(text, cls) {
+  const div = document.createElement("div");
+  div.className = cls;
+  div.textContent = text;
+  chat.appendChild(div);
 }
+
+async function sendMessage() {
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  add(msg, "user");
+  input.value = "";
+
+  const res = await fetch(
+    `https://ai.plprojektuje.workers.dev/?prompt=${encodeURIComponent(msg)}`
+  );
+
+  const data = await res.json();
+
+  add(data.response, "ai");
+}
+
+send.onclick = sendMessage;
